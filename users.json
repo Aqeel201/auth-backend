@@ -1,0 +1,134 @@
+[
+  {
+    "firstName": "Aqeel ",
+    "lastName": "Ahmed",
+    "CNICNo": "7110345864598",
+    "email": "aqeelah3076@gmail.com",
+    "password": "$2a$10$wnkwMbbbHY.BfCjMlIrmbuR64lVozm6K./BMMC7IrL9EGL5DBTbh2",
+    "profileImage": "1738963357739-655338d5-970c-4bcf-a229-acee8c7da452.jpeg",
+    "phone": "03499535156",
+    "address": "Kushmarah Skardu ",
+    "dob": "05/08/2000"
+  },
+  {
+    "firstName": "Johar ",
+    "lastName": "Ali Khayali",
+    "CNICNo": "",
+    "email": "jakshigri@gmail.com",
+    "password": "$2a$10$fUpfd7rICkyN/2HgVmoSOO4kagpkxDZT1Jem.VzZXhcq.Ko0RI8P6",
+    "profileImage": "1738952044562-548882e1-2239-4c33-87a7-64970225a49f.jpeg",
+    "phone": "0312345678",
+    "address": "pakistan",
+    "dob": "01/01/2000"
+  },
+  {
+    "id": "8a9c5f1f-a413-4c6b-9d11-f8c22fcf6b2d",
+    "firstName": "Admin",
+    "email": "admin@example.com",
+    "password": "$2a$10$JtyEYjhAlncDtUApy3zIOevmOM1tZH.9CmZerl/hTcUx0TOsY5P62",
+    "role": "admin",
+    "createdAt": "2025-02-07T18:26:47.331Z"
+  },
+  {
+    "id": "71cb6c9d-fc2b-447b-ac7e-97dc130ec9df",
+    "firstName": "Aqeel ",
+    "lastName": "Ahmed ",
+    "CNICNo": "711039565231",
+    "email": "aqeelah633@gmail.com",
+    "password": "$2a$10$hrOsSBYKrTlg/1/AbR74IOjuxyhlMooXLk8hs.pYn75HFmvnz8j3y",
+    "profileImage": "1738952857679-af3da57d-06b7-41dd-ae3d-4fb746bceab5.jpeg",
+    "role": "user",
+    "createdAt": "2025-02-07T18:27:37.817Z"
+  },
+  {
+    "id": "7a8c6041-4a33-4038-82de-d3f240e8fb4f",
+    "firstName": "Ali",
+    "lastName": "Hassan",
+    "CNICNo": "71103458645218",
+    "email": "alihassan123@gmail.com",
+    "password": "$2a$10$o9xNNRa2bZtCMUMEN6gsMOBzrDgm6Tru24fyvQyfmZfnzDqIV6i0y",
+    "profileImage": "1738954480977-f8cb496b-ea55-4fbc-8569-79bf1fdd0241.png",
+    "role": "user",
+    "createdAt": "2025-02-07T18:54:41.151Z"
+  },
+  {
+    "id": "53094804-a312-444f-841d-19124646f6d2",
+    "firstName": "Aqeel ",
+    "lastName": "Ahmed",
+    "CNICNo": "",
+    "email": "aqee@gmail.com",
+    "password": "$2a$10$/NlCyDgmlCC2p8p/NaEJ8emhLY4oqfK3I.xg2giUVis8f.Zp/n7wO",
+    "profileImage": "1738957027597-3ce16eaf-f7b1-45dc-a4b3-2a57c6d12857.jpeg",
+    "role": "user",
+    "createdAt": "2025-02-07T19:37:07.704Z"
+  },
+  {
+    "id": "c9d49454-6b0e-417a-be49-a7244873c88e",
+    "firstName": "Aqee ",
+    "lastName": "",
+    "CNICNo": "",
+    "email": "aqee123@gmail.com",
+    "password": "$2a$10$IFDOVAgd53bomYpUBqg1guOmhHAucdLRYH1ltKER5S76p5tcndQ4K",
+    "profileImage": "1738957338332-d13b1ba6-613c-4489-bbc1-dc1ae49e68cd.jpeg",
+    "role": "user",
+    "createdAt": "2025-02-07T19:42:18.542Z"
+  },
+  {
+    "id": "7b224ecf-8fee-429b-86ce-1bde50059333",
+    "firstName": "Aliza ",
+    "lastName": "Bano",
+    "CNICNo": "",
+    "email": "aliza@gmail.com",
+    "password": "$2a$10$dKLfsQ/GSvMoIZXJ8fJGv.n6WO0kTWAdE2Ei8UTvxbOuwsBb.LgEa",
+    "profileImage": "1738957740643-4cdcb9e8-a246-42b2-8f20-946d9ca1e3e6.jpeg",
+    "role": "user",
+    "createdAt": "2025-02-07T19:49:00.775Z"
+  },
+  {
+    "id": "52b768de-7343-47ed-8929-3c381a1ae589",
+    "firstName": "Unknown ",
+    "lastName": "Unknown ",
+    "CNICNo": "",
+    "email": "unknown@gmail.com",
+    "password": "$2a$10$rArf0vLdCi7RNF/T5SvUyuo0mxqoR//mu6L60bpNoL3oaahCkW3he",
+    "profileImage": "1738962848321-profile_1738962848734.jpg",
+    "role": "user",
+    "createdAt": "2025-02-07T21:14:08.460Z"
+  },
+  {
+    "id": "dbd7bedd-dc22-4d53-bba1-312770ad8c7c",
+    "firstName": "Aqeel",
+    "lastName": "Ahmed",
+    "CNICNo": "7110325645895",
+    "email": "aqeel@gmail.com",
+    "password": "$2a$10$qQGhQ.SQlxv1f37OrUvCs.dPWf05H.adyccXebbC/JWQIbp8SvbG6",
+    "profileImage": "1738963482458-profile_1738963484663.jpg",
+    "role": "user",
+    "createdAt": "2025-02-07T21:24:42.619Z"
+  },
+  {
+    "id": "3f2049cd-d006-4773-8024-61be7d9c4eb9",
+    "firstName": "Aqeel",
+    "lastName": "Ahmed",
+    "CNICNo": "71103456789123",
+    "email": "aqeel123@gmail.com",
+    "password": "$2a$10$ywW4CZZ7G/s7YdcFoJARIeeMS6sGHL6HzjhV.7PlDLqPYLW5KlAx.",
+    "profileImage": "1738964318914-9a45448f-0c43-405c-bc4d-a991ca0eeb4b.png",
+    "role": "user",
+    "createdAt": "2025-02-07T21:38:21.018Z"
+  },
+  {
+    "id": "d05b4701-9d31-4def-bfe7-1f837a0fb65a",
+    "firstName": "Aqeel",
+    "lastName": "Ahmed",
+    "CNICNo": "71103123456",
+    "email": "aqeel1122@gmail.com",
+    "password": "$2a$10$C.tQJxzEJ0rivwI38Y4R9.nmCOJ6IKtStvDg6jggEo3pmTcsR0jSS",
+    "profileImage": "1738964479850-aa6980cb-6bb9-496b-a315-d4a7e341fc48.png",
+    "role": "user",
+    "createdAt": "2025-02-07T21:40:27.244Z",
+    "phone": "03499535156",
+    "address": "pakistan",
+    "dob": "05/03/2002"
+  }
+]
