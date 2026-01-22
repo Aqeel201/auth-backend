@@ -612,52 +612,60 @@ app.get('/api/debug/users', async (req, res) => {
   }
 });
 
-// Start the Server
-app.listen(PORT, '0.0.0.0', async () => {
-  console.log(`Server running on port ${PORT}`);
-  console.log('Environment variables:', {
-    EMAIL_USER: process.env.EMAIL_USER,
-    EMAIL_PASS: process.env.EMAIL_PASS ? '****' : undefined,
-    PORT: process.env.PORT,
-    MONGO_URI: process.env.MONGO_URI ? '****' : undefined,
-  });
+// Start the Server (Only if not running on Vercel)
+if (process.env.NODE_ENV !== 'production' || !process.env.VERCEL) {
+  app.listen(PORT, '0.0.0.0', async () => {
+    console.log(`Server running on port ${PORT}`);
+    console.log('Environment variables:', {
+      EMAIL_USER: process.env.EMAIL_USER,
+      EMAIL_PASS: process.env.EMAIL_PASS ? '****' : undefined,
+      PORT: process.env.PORT,
+      MONGO_URI: process.env.MONGO_URI ? '****' : undefined,
+    });
 
-  // Connect to MongoDB
-  await connectDB();
+    // Connect to MongoDB
+    await connectDB();
 
-  // Admin User Setup
-  try {
-    const adminEmail = 'admin@mediapp.com';
-    const defaultPassword = 'admin123';
-    const hashedPassword = bcrypt.hashSync(defaultPassword, 10);
-    console.log('Attempting to set up admin user:', adminEmail);
+    // Admin User Setup
+    try {
+      const adminEmail = 'admin@mediapp.com';
+      const defaultPassword = 'admin123';
+      const hashedPassword = bcrypt.hashSync(defaultPassword, 10);
+      console.log('Attempting to set up admin user:', adminEmail);
 
-    let adminUser = await User.findOne({ email: adminEmail });
-    if (adminUser) {
-      console.log('Existing admin user found:', adminUser.email);
-      adminUser.password = hashedPassword;
-      adminUser.role = 'admin';
-      adminUser.firstName = adminUser.firstName || 'Admin';
-      adminUser.lastName = adminUser.lastName || 'User';
-      adminUser.createdAt = adminUser.createdAt || new Date().toISOString();
-      await adminUser.save();
-      console.log('Admin user updated successfully:', adminEmail);
-    } else {
-      console.log('No existing admin user found. Creating new admin user.');
-      adminUser = new User({
-        id: uuidv4(),
-        firstName: 'Admin',
-        lastName: 'User',
-        email: adminEmail,
-        password: hashedPassword,
-        role: 'admin',
-        createdAt: new Date().toISOString(),
-        verified: true,
-      });
-      await adminUser.save();
-      console.log('New admin user created successfully:', adminEmail);
+      let adminUser = await User.findOne({ email: adminEmail });
+      if (adminUser) {
+        console.log('Existing admin user found:', adminUser.email);
+        adminUser.password = hashedPassword;
+        adminUser.role = 'admin';
+        adminUser.firstName = adminUser.firstName || 'Admin';
+        adminUser.lastName = adminUser.lastName || 'User';
+        adminUser.createdAt = adminUser.createdAt || new Date().toISOString();
+        await adminUser.save();
+        console.log('Admin user updated successfully:', adminEmail);
+      } else {
+        console.log('No existing admin user found. Creating new admin user.');
+        adminUser = new User({
+          id: uuidv4(),
+          firstName: 'Admin',
+          lastName: 'User',
+          email: adminEmail,
+          password: hashedPassword,
+          role: 'admin',
+          createdAt: new Date().toISOString(),
+          verified: true,
+        });
+        await adminUser.save();
+        console.log('New admin user created successfully:', adminEmail);
+      }
+    } catch (err) {
+      console.error('Error setting up admin user:', err.message, err.stack);
     }
-  } catch (err) {
-    console.error('Error setting up admin user:', err.message, err.stack);
-  }
-});
+  });
+} else {
+  // On Vercel, just connect to DB on first request or at top level
+  connectDB().catch(err => console.error("Initial Vercel DB connect error:", err));
+}
+
+// Export for Vercel
+module.exports = app;
