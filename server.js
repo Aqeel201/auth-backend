@@ -25,16 +25,21 @@ app.use(cors());
 app.use(express.static(path.join(__dirname, 'public')));
 app.use('/uploads', express.static(path.join(__dirname, 'Uploads')));
 
-// Ensure Uploads directory exists
+// Ensure Uploads directory exists (Wrapped in try-catch for Vercel/Serverless)
 const uploadsDir = path.join(__dirname, 'Uploads');
-if (!fs.existsSync(uploadsDir)) {
-  fs.mkdirSync(uploadsDir, { recursive: true });
-}
-
-// Ensure Profile uploads directory exists
 const profileUploadsDir = path.join(__dirname, 'public', 'Uploads', 'Profile');
-if (!fs.existsSync(profileUploadsDir)) {
-  fs.mkdirSync(profileUploadsDir, { recursive: true });
+
+if (process.env.NODE_ENV !== 'production' || !process.env.VERCEL) {
+  try {
+    if (!fs.existsSync(uploadsDir)) {
+      fs.mkdirSync(uploadsDir, { recursive: true });
+    }
+    if (!fs.existsSync(profileUploadsDir)) {
+      fs.mkdirSync(profileUploadsDir, { recursive: true });
+    }
+  } catch (err) {
+    console.error('Directory creation error (ignored for serverless):', err.message);
+  }
 }
 
 // Multer setup for profile image uploads
