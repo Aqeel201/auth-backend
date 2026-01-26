@@ -477,7 +477,11 @@ app.post('/api/auth/signup', upload.single('profileImage'), async (req, res) => 
     res.status(201).json({ message: 'User registered, OTP sent to email', token, user: userWithoutSensitive });
   } catch (err) {
     console.error('Signup error:', err);
-    res.status(500).json({ message: 'Server error', error: err.message });
+    res.status(500).json({
+      message: 'Signup server error',
+      error: err.message,
+      details: err.stack
+    });
   }
 });
 
@@ -560,7 +564,12 @@ app.put('/api/auth/update', authMiddleware, upload.single('profileImage'), async
     const { password, ...userWithoutPassword } = user.toObject();
     res.json({ message: 'Profile updated successfully', user: userWithoutPassword });
   } catch (err) {
-    res.status(500).json({ message: 'Server error', error: err.message });
+    console.error('Update error:', err);
+    res.status(500).json({
+      message: 'Update server error',
+      error: err.message,
+      details: err.stack
+    });
   }
 });
 
