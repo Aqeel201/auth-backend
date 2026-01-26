@@ -11,6 +11,8 @@ const { v4: uuidv4 } = require('uuid');
 const mongoose = require('mongoose');
 const nodemailer = require('nodemailer');
 const crypto = require('crypto');
+const cloudinary = require('cloudinary').v2;
+const { CloudinaryStorage } = require('multer-storage-cloudinary');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -25,27 +27,21 @@ app.use(cors());
 app.use(express.static(path.join(__dirname, 'public')));
 app.use('/uploads', express.static(path.join(__dirname, 'Uploads')));
 
-// Ensure Uploads directory exists (Wrapped in try-catch for Vercel/Serverless)
-const uploadsDir = path.join(__dirname, 'Uploads');
-const profileUploadsDir = path.join(__dirname, 'public', 'Uploads', 'Profile');
+// Cloudinary Configuration
+cloudinary.config({
+  cloud_name: process.env.CLOUDINARY_CLOUD_NAME,
+  api_key: process.env.CLOUDINARY_API_KEY,
+  api_secret: process.env.CLOUDINARY_API_SECRET,
+});
 
-if (process.env.NODE_ENV !== 'production' || !process.env.VERCEL) {
-  try {
-    if (!fs.existsSync(uploadsDir)) {
-      fs.mkdirSync(uploadsDir, { recursive: true });
-    }
-    if (!fs.existsSync(profileUploadsDir)) {
-      fs.mkdirSync(profileUploadsDir, { recursive: true });
-    }
-  } catch (err) {
-    console.error('Directory creation error (ignored for serverless):', err.message);
-  }
-}
-
-// Multer setup for profile image uploads
-const storage = multer.diskStorage({
-  destination: (req, file, cb) => cb(null, uploadsDir),
-  filename: (req, file, cb) => cb(null, `${Date.now()}-${file.originalname}`),
+// Multer setup with Cloudinary storage for profile image uploads
+const storage = new CloudinaryStorage({
+  cloudinary: cloudinary,
+  params: {
+    folder: 'mediapp/profiles',
+    allowed_formats: ['jpg', 'jpeg', 'png', 'gif', 'webp'],
+    transformation: [{ width: 500, height: 500, crop: 'limit' }],
+  },
 });
 const upload = multer({ storage });
 
@@ -423,7 +419,8 @@ app.post('/api/auth/verify-otp', async (req, res) => {
 
 app.post('/api/auth/signup', upload.single('profileImage'), async (req, res) => {
   let { firstName, lastName, CNICNo, email, password } = req.body;
-  const profileImage = req.file ? req.file.filename : null;
+  // Use Cloudinary URL (req.file.path) instead of local filename
+  const profileImage = req.file ? req.file.path : null;
 
   if (!firstName || !email || !password) {
     return res.status(400).json({ message: 'Required fields missing' });
@@ -439,15 +436,7 @@ app.post('/api/auth/signup', upload.single('profileImage'), async (req, res) => 
     }
 
     if (req.file) {
-      const sourcePath = path.join(uploadsDir, req.file.filename);
-      const destPath = path.join(profileUploadsDir, req.file.filename);
-      fs.copyFile(sourcePath, destPath, (err) => {
-        if (err) {
-          console.error('Error copying file:', err);
-        } else {
-          console.log('File copied to profile uploads directory.');
-        }
-      });
+      console.log('Profile image uploaded to Cloudinary:', req.file.path);
     }
 
     const hashedPassword = await bcrypt.hash(password, 10);
@@ -563,17 +552,9 @@ app.put('/api/auth/update', authMiddleware, upload.single('profileImage'), async
     if (address) user.address = address;
     if (dob) user.dob = dob;
     if (req.file) {
-      console.log('Received file:', req.file);
-      user.profileImage = req.file.filename;
-      const sourcePath = path.join(uploadsDir, req.file.filename);
-      const destPath = path.join(profileUploadsDir, req.file.filename);
-      fs.copyFile(sourcePath, destPath, (err) => {
-        if (err) {
-          console.error('Error copying file:', err);
-        } else {
-          console.log('File copied to profile uploads directory.');
-        }
-      });
+      console.log('Profile image uploaded to Cloudinary:', req.file.path);
+      // Use Cloudinary URL instead of local filename
+      user.profileImage = req.file.path;
     }
     await user.save();
     const { password, ...userWithoutPassword } = user.toObject();
