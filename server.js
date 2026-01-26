@@ -106,6 +106,17 @@ const userSchema = new mongoose.Schema({
 });
 const User = mongoose.model('User', userSchema);
 
+// Feedback Schema
+const FeedbackSchema = new mongoose.Schema({
+  userId: { type: String, required: true },
+  userName: { type: String, required: true },
+  userProfileImage: { type: String, default: '' }, // Store profile image URL
+  rating: { type: Number, required: true, min: 1, max: 5 },
+  comment: { type: String, required: true },
+  createdAt: { type: Date, default: Date.now },
+});
+const Feedback = mongoose.model('Feedback', FeedbackSchema);
+
 // TempUser Schema
 const tempUserSchema = new mongoose.Schema({
   id: { type: String, required: true, unique: true, default: uuidv4 },
@@ -595,6 +606,40 @@ app.put('/api/auth/change-password', authMiddleware, async (req, res) => {
 
 app.get('/admin', (req, res) => {
   res.sendFile(path.join(__dirname, 'public', 'admin.html'));
+});
+
+// Feedback Routes
+app.post('/api/feedback', authMiddleware, async (req, res) => {
+  try {
+    const { rating, comment } = req.body;
+    if (!rating || !comment || rating < 1 || rating > 5) {
+      return res.status(400).json({ error: 'Rating (1-5) and comment are required' });
+    }
+    const userName = `${req.user.firstName || ''} ${req.user.lastName || ''}`.trim() || req.user.email.split('@')[0];
+    const feedback = new Feedback({
+      userId: req.user.id,
+      userName,
+      userProfileImage: req.user.profileImage || '',
+      rating,
+      comment,
+      createdAt: new Date(),
+    });
+    await feedback.save();
+    res.status(201).json({ message: 'Feedback submitted successfully', feedback });
+  } catch (err) {
+    console.error('Error submitting feedback:', err);
+    res.status(500).json({ error: 'Failed to submit feedback', details: err.message });
+  }
+});
+
+app.get('/api/feedback', authMiddleware, async (req, res) => {
+  try {
+    const feedbackList = await Feedback.find().sort({ createdAt: -1 });
+    res.json(feedbackList);
+  } catch (err) {
+    console.error('Error fetching feedback:', err);
+    res.status(500).json({ error: 'Failed to fetch feedback', details: err.message });
+  }
 });
 
 // Debug Endpoint to List Users
