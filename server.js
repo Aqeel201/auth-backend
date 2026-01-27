@@ -250,6 +250,14 @@ support@mediapp.com
   return { subject, text, html };
 };
 
+app.get('/api/debug-auth', (req, res) => {
+  res.json({
+    secret_length: SECRET_KEY.length,
+    secret_prefix: SECRET_KEY.substring(0, 3),
+    env_secret: process.env.SECRET_KEY ? 'SET' : 'NOT_SET'
+  });
+});
+
 // Cleanup expired temporary users
 setInterval(async () => {
   try {
