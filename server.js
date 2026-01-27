@@ -16,7 +16,14 @@ const { CloudinaryStorage } = require('multer-storage-cloudinary');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
-const SECRET_KEY = process.env.SECRET_KEY || 'Mediapp_Shared_Secret_2026_Key_Sync_Fix';
+const SECRET_KEY = 'Mediapp_Synced_Key_2026_Global'; // FORCED SYNC
+
+app.get('/api/debug-auth', (req, res) => {
+  res.json({
+    secret_length: SECRET_KEY.length,
+    secret_prefix: SECRET_KEY.substring(0, 3)
+  });
+});
 
 // MongoDB Connection URI
 const uri = process.env.MONGO_URI || "mongodb+srv://teammediapp:Aqee201@mediapp.hbuyqtw.mongodb.net/mediApp?retryWrites=true&w=majority&appName=MediApp";
