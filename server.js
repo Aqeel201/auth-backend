@@ -53,63 +53,18 @@ const storage = new CloudinaryStorage({
 });
 const upload = multer({ storage });
 
-const EMAIL_USER = process.env.EMAIL_USER || '';
-const EMAIL_PASS = process.env.EMAIL_PASS || '';
-const EMAIL_PROVIDER = (process.env.EMAIL_PROVIDER || 'gmail').toLowerCase();
-const EMAIL_DEBUG = process.env.EMAIL_DEBUG === 'true';
-
-const createTransporter = () => {
-  if (EMAIL_PROVIDER === 'smtp') {
-    return nodemailer.createTransport({
-      host: process.env.SMTP_HOST,
-      port: parseInt(process.env.SMTP_PORT || '587', 10),
-      secure: (process.env.SMTP_SECURE || 'false') === 'true',
-      auth: {
-        user: process.env.SMTP_USER,
-        pass: process.env.SMTP_PASS,
-      },
-      logger: EMAIL_DEBUG,
-      debug: EMAIL_DEBUG,
-    });
-  }
-
-  if (EMAIL_PROVIDER === 'gmail-oauth') {
-    return nodemailer.createTransport({
-      service: 'gmail',
-      auth: {
-        type: 'OAuth2',
-        user: EMAIL_USER,
-        clientId: process.env.GMAIL_CLIENT_ID,
-        clientSecret: process.env.GMAIL_CLIENT_SECRET,
-        refreshToken: process.env.GMAIL_REFRESH_TOKEN,
-      },
-      logger: EMAIL_DEBUG,
-      debug: EMAIL_DEBUG,
-    });
-  }
-
-  // Default: Gmail app password
-  return nodemailer.createTransport({
-    service: 'gmail',
-    auth: {
-      user: EMAIL_USER,
-      pass: EMAIL_PASS,
-    },
-    logger: EMAIL_DEBUG,
-    debug: EMAIL_DEBUG,
-  });
-};
-
 // Email Transporter Setup
-const transporter = createTransporter();
-
-const isEmailAuthError = (err) => err?.code === 'EAUTH' || err?.responseCode === 534;
-const getEmailErrorMessage = (err) => {
-  if (isEmailAuthError(err)) {
-    return 'Email login failed. Please log in to Gmail in a browser and create an App Password, or configure Gmail OAuth2.';
-  }
-  return 'Failed to send email. Please try again later.';
-};
+const transporter = nodemailer.createTransport({
+  host: 'smtp.gmail.com',
+  port: 587,
+  secure: false,
+  auth: {
+    user: process.env.EMAIL_USER,
+    pass: process.env.EMAIL_PASS,
+  },
+  logger: true,
+  debug: true,
+});
 
 // Verify Nodemailer configuration
 transporter.verify((error, success) => {
@@ -335,7 +290,7 @@ app.get('/api/test-email', async (req, res) => {
     res.json({ message: 'Test email sent' });
   } catch (err) {
     console.error('Test email error:', err);
-    res.status(500).json({ message: getEmailErrorMessage(err), error: err.message });
+    res.status(500).json({ message: 'Failed to send test email', error: err.message });
   }
 });
 
@@ -375,10 +330,7 @@ app.post('/api/auth/request-password-reset', async (req, res) => {
     res.json({ message: 'Password reset OTP sent' });
   } catch (err) {
     console.error('Failed to send password reset OTP:', err);
-    res.status(500).json({
-      message: isEmailAuthError(err) ? getEmailErrorMessage(err) : 'Failed to send OTP',
-      error: err.message
-    });
+    res.status(500).json({ message: 'Failed to send OTP', error: err.message });
   }
 });
 
@@ -447,10 +399,7 @@ app.post('/api/auth/send-otp', async (req, res) => {
     res.json({ message: 'OTP sent' });
   } catch (err) {
     console.error('Failed to send OTP:', err);
-    res.status(500).json({
-      message: isEmailAuthError(err) ? getEmailErrorMessage(err) : 'Failed to send OTP',
-      error: err.message
-    });
+    res.status(500).json({ message: 'Failed to send OTP', error: err.message });
   }
 });
 
@@ -556,7 +505,7 @@ app.post('/api/auth/signup', upload.single('profileImage'), async (req, res) => 
   } catch (err) {
     console.error('Signup error:', err);
     res.status(500).json({
-      message: isEmailAuthError(err) ? getEmailErrorMessage(err) : 'Signup server error',
+      message: 'Signup server error',
       error: err.message,
       details: err.stack
     });
