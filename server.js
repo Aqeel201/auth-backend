@@ -17,6 +17,7 @@ const { CloudinaryStorage } = require('multer-storage-cloudinary');
 const app = express();
 const PORT = process.env.PORT || 3000;
 const SECRET_KEY = 'Mediapp_Synced_Key_2026_Global'; // FORCED SYNC
+const JWT_EXPIRES_IN = process.env.JWT_EXPIRES_IN || '365d';
 
 app.get('/api/debug-auth', (req, res) => {
   res.json({
@@ -434,7 +435,7 @@ app.post('/api/auth/verify-otp', async (req, res) => {
     await newUser.save();
     await TempUser.deleteOne({ email: email.toLowerCase(), purpose: 'signup' });
 
-    const token = jwt.sign({ email: newUser.email, role: newUser.role }, SECRET_KEY, { expiresIn: '1h' });
+    const token = jwt.sign({ email: newUser.email, role: newUser.role }, SECRET_KEY, { expiresIn: JWT_EXPIRES_IN });
     const { password, ...userWithoutPassword } = newUser.toObject();
     res.json({ message: 'OTP verified, user created', token, user: userWithoutPassword });
   } catch (err) {
@@ -498,7 +499,7 @@ app.post('/api/auth/signup', upload.single('profileImage'), async (req, res) => 
       html,
     });
 
-    const token = jwt.sign({ email, role: 'user' }, SECRET_KEY, { expiresIn: '1h' });
+    const token = jwt.sign({ email, role: 'user' }, SECRET_KEY, { expiresIn: JWT_EXPIRES_IN });
     const { password: _, otp: __, otpExpiry: expiryTime, otpAttempts, ...userWithoutSensitive } = tempUser.toObject();
     res.status(201).json({ message: 'User registered, OTP sent to email', token, user: userWithoutSensitive });
   } catch (err) {
@@ -525,7 +526,7 @@ app.post('/api/auth/login', async (req, res) => {
       return res.status(403).json({ message: 'Email not verified. Please verify OTP.' });
     }
 
-    const token = jwt.sign({ email, role: user.role }, SECRET_KEY, { expiresIn: '1h' });
+    const token = jwt.sign({ email, role: user.role }, SECRET_KEY, { expiresIn: JWT_EXPIRES_IN });
     const { password: pwd, ...userWithoutPassword } = user.toObject();
     res.json({ message: 'Login successful', token, role: user.role, user: userWithoutPassword });
   } catch (err) {
