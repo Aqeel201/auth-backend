@@ -625,7 +625,19 @@ app.post('/api/promotions/run', async (req, res) => {
     const incomingSecret = req.headers['x-cron-secret'] || req.query.secret || '';
     const vercelCronHeader = req.headers['x-vercel-cron'];
     const isVercelCron = String(vercelCronHeader || '').toLowerCase() === '1' || String(vercelCronHeader || '').toLowerCase() === 'true';
-    if (configuredSecret && incomingSecret !== configuredSecret && !isVercelCron) {
+    const authHeader = req.headers.authorization || '';
+    const token = authHeader.split(' ')[1];
+    let isAdmin = false;
+    if (token) {
+      try {
+        const decoded = jwt.verify(token, SECRET_KEY);
+        const adminUser = await User.findOne({ email: decoded.email.toLowerCase() });
+        isAdmin = Boolean(adminUser && adminUser.role === 'admin');
+      } catch (err) {
+        isAdmin = false;
+      }
+    }
+    if (configuredSecret && incomingSecret !== configuredSecret && !isVercelCron && !isAdmin) {
       return res.status(401).json({ message: 'Unauthorized' });
     }
 
@@ -663,6 +675,17 @@ app.post('/api/promotions/run', async (req, res) => {
     res.json({ message: 'Promotions processed', sent, failed, total: dueUsers.length });
   } catch (err) {
     console.error('Promotions run failed:', err);
+    res.status(500).json({ message: 'Server error', error: err.message });
+  }
+});
+
+app.post('/api/promotions/opt-out', authMiddleware, async (req, res) => {
+  try {
+    req.user.promoOptIn = false;
+    req.user.promoNextAt = null;
+    await req.user.save();
+    res.json({ message: 'Unsubscribed from promotional emails' });
+  } catch (err) {
     res.status(500).json({ message: 'Server error', error: err.message });
   }
 });
