@@ -766,13 +766,19 @@ app.put('/api/users/:id/password', authMiddleware, adminMiddleware, async (req, 
 app.put('/api/auth/update', authMiddleware, upload.single('profileImage'), async (req, res) => {
   try {
     const user = req.user;
-    const { firstName, lastName, CNICNo, phone, address, dob } = req.body;
+    const { firstName, lastName, CNICNo, phone, address, dob, promoOptIn } = req.body;
     if (firstName) user.firstName = firstName;
     if (lastName) user.lastName = lastName;
     if (CNICNo) user.CNICNo = CNICNo;
     if (phone) user.phone = phone;
     if (address) user.address = address;
     if (dob) user.dob = dob;
+    if (promoOptIn !== undefined) {
+      const flag = String(promoOptIn).toLowerCase() === 'true';
+      user.promoOptIn = flag;
+      if (flag && !user.promoNextAt) user.promoNextAt = getNextPromoDate(new Date());
+      if (!flag) user.promoNextAt = null;
+    }
     if (req.file) {
       console.log('Profile image uploaded to Cloudinary:', req.file.path);
       // Use Cloudinary URL instead of local filename
