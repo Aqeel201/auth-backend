@@ -137,6 +137,15 @@ const buildPromoEmail = (user, template) => {
   return { subject: template.subject, html, text };
 };
 
+const isPromoAuthorized = (req) => {
+  const configuredSecret = process.env.PROMO_CRON_SECRET || '';
+  const incomingSecret = req.headers['x-cron-secret'] || req.query.secret || '';
+  const vercelCronHeader = req.headers['x-vercel-cron'];
+  const isVercelCron = String(vercelCronHeader || '').toLowerCase() === '1' || String(vercelCronHeader || '').toLowerCase() === 'true';
+  if (!configuredSecret) return isVercelCron;
+  return incomingSecret === configuredSecret || isVercelCron;
+};
+
 // MongoDB Connection
 async function connectDB() {
   try {
@@ -621,11 +630,7 @@ app.get('/api/usercount', async (req, res) => {
 
 app.post('/api/promotions/run', async (req, res) => {
   try {
-    const configuredSecret = process.env.PROMO_CRON_SECRET || '';
-    const incomingSecret = req.headers['x-cron-secret'] || req.query.secret || '';
-    const vercelCronHeader = req.headers['x-vercel-cron'];
-    const isVercelCron = String(vercelCronHeader || '').toLowerCase() === '1' || String(vercelCronHeader || '').toLowerCase() === 'true';
-    if (configuredSecret && incomingSecret !== configuredSecret && !isVercelCron) {
+    if (!isPromoAuthorized(req)) {
       return res.status(401).json({ message: 'Unauthorized' });
     }
 
@@ -663,6 +668,77 @@ app.post('/api/promotions/run', async (req, res) => {
     res.json({ message: 'Promotions processed', sent, failed, total: dueUsers.length });
   } catch (err) {
     console.error('Promotions run failed:', err);
+    res.status(500).json({ message: 'Server error', error: err.message });
+  }
+});
+
+app.get('/api/promotions/templates', async (req, res) => {
+  if (!isPromoAuthorized(req)) return res.status(401).json({ message: 'Unauthorized' });
+  const templates = PROMO_TEMPLATES.map((t, idx) => ({
+    id: idx,
+    subject: t.subject,
+    headline: t.headline,
+    body: t.body,
+    cta: t.cta,
+  }));
+  res.json({ templates });
+});
+
+app.get('/api/promotions/users', async (req, res) => {
+  if (!isPromoAuthorized(req)) return res.status(401).json({ message: 'Unauthorized' });
+  const users = await User.find({
+    role: 'user',
+    verified: true,
+    promoOptIn: { $ne: false },
+  }).select('id firstName lastName email');
+  res.json({ users });
+});
+
+app.post('/api/promotions/send', async (req, res) => {
+  try {
+    if (!isPromoAuthorized(req)) return res.status(401).json({ message: 'Unauthorized' });
+    const { mode, emails, templateId } = req.body || {};
+    const template = PROMO_TEMPLATES[Number(templateId) || 0] || PROMO_TEMPLATES[0];
+    const now = new Date();
+
+    let targetUsers = [];
+    if (mode === 'selected') {
+      const list = Array.isArray(emails) ? emails : [];
+      const normalized = list.map((e) => String(e || '').toLowerCase().trim()).filter(Boolean);
+      targetUsers = await User.find({ email: { $in: normalized }, verified: true }).select('email firstName promoOptIn');
+    } else {
+      targetUsers = await User.find({
+        role: 'user',
+        verified: true,
+        promoOptIn: { $ne: false },
+      }).select('email firstName promoOptIn');
+    }
+
+    let sent = 0;
+    let failed = 0;
+    for (const user of targetUsers) {
+      if (user.promoOptIn === false) continue;
+      const { subject, text, html } = buildPromoEmail(user, template);
+      try {
+        await transporter.sendMail({
+          from: process.env.EMAIL_USER,
+          to: user.email,
+          subject,
+          text,
+          html,
+        });
+        user.promoLastSentAt = now;
+        user.promoNextAt = getNextPromoDate(now);
+        await user.save();
+        sent += 1;
+      } catch (mailErr) {
+        failed += 1;
+        console.error('Promo email failed for', user.email, mailErr.message);
+      }
+    }
+
+    res.json({ message: 'Promotions sent', sent, failed, total: targetUsers.length });
+  } catch (err) {
     res.status(500).json({ message: 'Server error', error: err.message });
   }
 });
