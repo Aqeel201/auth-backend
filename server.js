@@ -75,76 +75,6 @@ transporter.verify((error, success) => {
   }
 });
 
-const PROMO_TEMPLATES = [
-  {
-    subject: 'MediApp: Simple habits, stronger health',
-    headline: 'A small routine can make a big difference',
-    body: [
-      'Drink water first thing in the morning.',
-      'Add 10–20 minutes of light movement.',
-      'Keep medicines organized and on time.',
-    ],
-    cta: 'Open MediApp',
-  },
-  {
-    subject: 'MediApp Care: Feeling under the weather?',
-    headline: 'Get guidance and medicine options faster',
-    body: [
-      'Check symptoms and safe self‑care tips.',
-      'See medicines available in your local store.',
-      'Order quickly with delivery tracking.',
-    ],
-    cta: 'Check Symptoms',
-  },
-  {
-    subject: 'MediApp Wellness: Your health, simplified',
-    headline: 'Stay consistent with daily health basics',
-    body: [
-      'Sleep 7–8 hours for better recovery.',
-      'Eat balanced meals with protein + fiber.',
-      'Set medicine reminders in one place.',
-    ],
-    cta: 'Explore MediApp',
-  },
-];
-
-const getNextPromoDate = (fromDate = new Date()) => {
-  const minMs = 48 * 60 * 60 * 1000;
-  const maxMs = 72 * 60 * 60 * 1000;
-  const delta = Math.floor(Math.random() * (maxMs - minMs + 1)) + minMs;
-  return new Date(fromDate.getTime() + delta);
-};
-
-const buildPromoEmail = (user, template) => {
-  const appUrl = process.env.PROMO_APP_URL || process.env.APP_PUBLIC_URL || 'https://mediapp.app';
-  const name = user?.firstName || 'there';
-  const listItems = template.body.map((line) => `<li style="margin-bottom:8px;">${line}</li>`).join('');
-  const html = `
-  <div style="font-family:Arial,sans-serif;color:#0f172a;background:#f8fafc;padding:24px;">
-    <div style="max-width:600px;margin:0 auto;background:#ffffff;border-radius:14px;padding:24px;border:1px solid #e2e8f0;">
-      <h2 style="margin:0 0 8px 0;color:#1d4ed8;">${template.headline}</h2>
-      <p style="margin:0 0 16px 0;color:#334155;">Hi ${name},</p>
-      <ul style="padding-left:18px;margin:0 0 16px 0;color:#334155;">${listItems}</ul>
-      <a href="${appUrl}" style="display:inline-block;background:#2563eb;color:#fff;text-decoration:none;padding:10px 16px;border-radius:10px;font-weight:bold;">
-        ${template.cta}
-      </a>
-      <p style="margin-top:18px;color:#64748b;font-size:12px;">
-        You received this because you’re a MediApp user.
-      </p>
-    </div>
-  </div>`;
-  const text = `Hi ${name},\n\n${template.body.join('\n')}\n\n${template.cta}: ${appUrl}\n\n— MediApp`;
-  return { subject: template.subject, html, text };
-};
-
-const isPromoAuthorized = (req) => {
-  const configuredSecret = process.env.PROMO_CRON_SECRET || '';
-  const incomingSecret = req.headers['x-cron-secret'] || req.query.secret || '';
-  const vercelCronHeader = req.headers['x-vercel-cron'];
-  const isVercelCron = String(vercelCronHeader || '').toLowerCase() === '1' || String(vercelCronHeader || '').toLowerCase() === 'true';
-  if (!configuredSecret) return isVercelCron;
-  return incomingSecret === configuredSecret || isVercelCron;
-};
 
 // MongoDB Connection
 async function connectDB() {
@@ -182,9 +112,6 @@ const userSchema = new mongoose.Schema({
   address: { type: String, default: '' },
   dob: { type: String, default: '' },
   verified: { type: Boolean, default: false },
-  promoOptIn: { type: Boolean, default: true },
-  promoLastSentAt: { type: Date, default: null },
-  promoNextAt: { type: Date, default: null },
 });
 const User = mongoose.model('User', userSchema);
 
@@ -504,8 +431,6 @@ app.post('/api/auth/verify-otp', async (req, res) => {
       role: tempUser.role,
       createdAt: tempUser.createdAt,
       verified: true,
-      promoOptIn: true,
-      promoNextAt: getNextPromoDate(new Date()),
     });
 
     await newUser.save();
@@ -628,120 +553,6 @@ app.get('/api/usercount', async (req, res) => {
   }
 });
 
-app.post('/api/promotions/run', async (req, res) => {
-  try {
-    if (!isPromoAuthorized(req)) {
-      return res.status(401).json({ message: 'Unauthorized' });
-    }
-
-    const now = new Date();
-    const dueUsers = await User.find({
-      role: 'user',
-      verified: true,
-      promoOptIn: { $ne: false },
-      $or: [{ promoNextAt: { $exists: false } }, { promoNextAt: { $lte: now } }],
-    }).select('email firstName promoNextAt promoLastSentAt');
-
-    let sent = 0;
-    let failed = 0;
-    for (const user of dueUsers) {
-      const template = PROMO_TEMPLATES[Math.floor(Math.random() * PROMO_TEMPLATES.length)];
-      const { subject, text, html } = buildPromoEmail(user, template);
-      try {
-        await transporter.sendMail({
-          from: process.env.EMAIL_USER,
-          to: user.email,
-          subject,
-          text,
-          html,
-        });
-        user.promoLastSentAt = now;
-        user.promoNextAt = getNextPromoDate(now);
-        await user.save();
-        sent += 1;
-      } catch (mailErr) {
-        failed += 1;
-        console.error('Promo email failed for', user.email, mailErr.message);
-      }
-    }
-
-    res.json({ message: 'Promotions processed', sent, failed, total: dueUsers.length });
-  } catch (err) {
-    console.error('Promotions run failed:', err);
-    res.status(500).json({ message: 'Server error', error: err.message });
-  }
-});
-
-app.get('/api/promotions/templates', async (req, res) => {
-  if (!isPromoAuthorized(req)) return res.status(401).json({ message: 'Unauthorized' });
-  const templates = PROMO_TEMPLATES.map((t, idx) => ({
-    id: idx,
-    subject: t.subject,
-    headline: t.headline,
-    body: t.body,
-    cta: t.cta,
-  }));
-  res.json({ templates });
-});
-
-app.get('/api/promotions/users', async (req, res) => {
-  if (!isPromoAuthorized(req)) return res.status(401).json({ message: 'Unauthorized' });
-  const users = await User.find({
-    role: 'user',
-    verified: true,
-    promoOptIn: { $ne: false },
-  }).select('id firstName lastName email');
-  res.json({ users });
-});
-
-app.post('/api/promotions/send', async (req, res) => {
-  try {
-    if (!isPromoAuthorized(req)) return res.status(401).json({ message: 'Unauthorized' });
-    const { mode, emails, templateId } = req.body || {};
-    const template = PROMO_TEMPLATES[Number(templateId) || 0] || PROMO_TEMPLATES[0];
-    const now = new Date();
-
-    let targetUsers = [];
-    if (mode === 'selected') {
-      const list = Array.isArray(emails) ? emails : [];
-      const normalized = list.map((e) => String(e || '').toLowerCase().trim()).filter(Boolean);
-      targetUsers = await User.find({ email: { $in: normalized }, verified: true }).select('email firstName promoOptIn');
-    } else {
-      targetUsers = await User.find({
-        role: 'user',
-        verified: true,
-        promoOptIn: { $ne: false },
-      }).select('email firstName promoOptIn');
-    }
-
-    let sent = 0;
-    let failed = 0;
-    for (const user of targetUsers) {
-      if (user.promoOptIn === false) continue;
-      const { subject, text, html } = buildPromoEmail(user, template);
-      try {
-        await transporter.sendMail({
-          from: process.env.EMAIL_USER,
-          to: user.email,
-          subject,
-          text,
-          html,
-        });
-        user.promoLastSentAt = now;
-        user.promoNextAt = getNextPromoDate(now);
-        await user.save();
-        sent += 1;
-      } catch (mailErr) {
-        failed += 1;
-        console.error('Promo email failed for', user.email, mailErr.message);
-      }
-    }
-
-    res.json({ message: 'Promotions sent', sent, failed, total: targetUsers.length });
-  } catch (err) {
-    res.status(500).json({ message: 'Server error', error: err.message });
-  }
-});
 
 app.put('/api/users/:id/password', authMiddleware, adminMiddleware, async (req, res) => {
   const { newPassword, adminPassword } = req.body;
@@ -766,19 +577,13 @@ app.put('/api/users/:id/password', authMiddleware, adminMiddleware, async (req, 
 app.put('/api/auth/update', authMiddleware, upload.single('profileImage'), async (req, res) => {
   try {
     const user = req.user;
-    const { firstName, lastName, CNICNo, phone, address, dob, promoOptIn } = req.body;
+    const { firstName, lastName, CNICNo, phone, address, dob } = req.body;
     if (firstName) user.firstName = firstName;
     if (lastName) user.lastName = lastName;
     if (CNICNo) user.CNICNo = CNICNo;
     if (phone) user.phone = phone;
     if (address) user.address = address;
     if (dob) user.dob = dob;
-    if (promoOptIn !== undefined) {
-      const flag = String(promoOptIn).toLowerCase() === 'true';
-      user.promoOptIn = flag;
-      if (flag && !user.promoNextAt) user.promoNextAt = getNextPromoDate(new Date());
-      if (!flag) user.promoNextAt = null;
-    }
     if (req.file) {
       console.log('Profile image uploaded to Cloudinary:', req.file.path);
       // Use Cloudinary URL instead of local filename
