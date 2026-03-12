@@ -77,16 +77,34 @@ transporter.verify((error, success) => {
 
 const PROMO_TEMPLATES = [
   {
-    subject: 'MediApp Weekly Health Tip',
-    text: 'Stay hydrated and get 7–8 hours of sleep for better immunity. Check MediApp for health tips and medicines.',
+    subject: 'MediApp: Simple habits, stronger health',
+    headline: 'A small routine can make a big difference',
+    body: [
+      'Drink water first thing in the morning.',
+      'Add 10–20 minutes of light movement.',
+      'Keep medicines organized and on time.',
+    ],
+    cta: 'Open MediApp',
   },
   {
-    subject: 'MediApp Care Reminder',
-    text: 'Feeling under the weather? MediApp helps you find medicines and health guidance quickly.',
+    subject: 'MediApp Care: Feeling under the weather?',
+    headline: 'Get guidance and medicine options faster',
+    body: [
+      'Check symptoms and safe self‑care tips.',
+      'See medicines available in your local store.',
+      'Order quickly with delivery tracking.',
+    ],
+    cta: 'Check Symptoms',
   },
   {
-    subject: 'MediApp Wellness Update',
-    text: 'Small habits make big health gains. Track your health and explore MediApp today.',
+    subject: 'MediApp Wellness: Your health, simplified',
+    headline: 'Stay consistent with daily health basics',
+    body: [
+      'Sleep 7–8 hours for better recovery.',
+      'Eat balanced meals with protein + fiber.',
+      'Set medicine reminders in one place.',
+    ],
+    cta: 'Explore MediApp',
   },
 ];
 
@@ -95,6 +113,28 @@ const getNextPromoDate = (fromDate = new Date()) => {
   const maxMs = 72 * 60 * 60 * 1000;
   const delta = Math.floor(Math.random() * (maxMs - minMs + 1)) + minMs;
   return new Date(fromDate.getTime() + delta);
+};
+
+const buildPromoEmail = (user, template) => {
+  const appUrl = process.env.PROMO_APP_URL || process.env.APP_PUBLIC_URL || 'https://mediapp.app';
+  const name = user?.firstName || 'there';
+  const listItems = template.body.map((line) => `<li style="margin-bottom:8px;">${line}</li>`).join('');
+  const html = `
+  <div style="font-family:Arial,sans-serif;color:#0f172a;background:#f8fafc;padding:24px;">
+    <div style="max-width:600px;margin:0 auto;background:#ffffff;border-radius:14px;padding:24px;border:1px solid #e2e8f0;">
+      <h2 style="margin:0 0 8px 0;color:#1d4ed8;">${template.headline}</h2>
+      <p style="margin:0 0 16px 0;color:#334155;">Hi ${name},</p>
+      <ul style="padding-left:18px;margin:0 0 16px 0;color:#334155;">${listItems}</ul>
+      <a href="${appUrl}" style="display:inline-block;background:#2563eb;color:#fff;text-decoration:none;padding:10px 16px;border-radius:10px;font-weight:bold;">
+        ${template.cta}
+      </a>
+      <p style="margin-top:18px;color:#64748b;font-size:12px;">
+        You received this because you’re a MediApp user.
+      </p>
+    </div>
+  </div>`;
+  const text = `Hi ${name},\n\n${template.body.join('\n')}\n\n${template.cta}: ${appUrl}\n\n— MediApp`;
+  return { subject: template.subject, html, text };
 };
 
 // MongoDB Connection
@@ -455,6 +495,8 @@ app.post('/api/auth/verify-otp', async (req, res) => {
       role: tempUser.role,
       createdAt: tempUser.createdAt,
       verified: true,
+      promoOptIn: true,
+      promoNextAt: getNextPromoDate(new Date()),
     });
 
     await newUser.save();
@@ -581,7 +623,9 @@ app.post('/api/promotions/run', async (req, res) => {
   try {
     const configuredSecret = process.env.PROMO_CRON_SECRET || '';
     const incomingSecret = req.headers['x-cron-secret'] || req.query.secret || '';
-    if (configuredSecret && incomingSecret !== configuredSecret) {
+    const vercelCronHeader = req.headers['x-vercel-cron'];
+    const isVercelCron = String(vercelCronHeader || '').toLowerCase() === '1' || String(vercelCronHeader || '').toLowerCase() === 'true';
+    if (configuredSecret && incomingSecret !== configuredSecret && !isVercelCron) {
       return res.status(401).json({ message: 'Unauthorized' });
     }
 
@@ -597,9 +641,7 @@ app.post('/api/promotions/run', async (req, res) => {
     let failed = 0;
     for (const user of dueUsers) {
       const template = PROMO_TEMPLATES[Math.floor(Math.random() * PROMO_TEMPLATES.length)];
-      const subject = template.subject;
-      const text = template.text;
-      const html = `<p>Hi ${user.firstName || 'there'},</p><p>${template.text}</p><p>— MediApp</p>`;
+      const { subject, text, html } = buildPromoEmail(user, template);
       try {
         await transporter.sendMail({
           from: process.env.EMAIL_USER,
