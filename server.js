@@ -75,6 +75,28 @@ transporter.verify((error, success) => {
   }
 });
 
+const PROMO_TEMPLATES = [
+  {
+    subject: 'MediApp Weekly Health Tip',
+    text: 'Stay hydrated and get 7–8 hours of sleep for better immunity. Check MediApp for health tips and medicines.',
+  },
+  {
+    subject: 'MediApp Care Reminder',
+    text: 'Feeling under the weather? MediApp helps you find medicines and health guidance quickly.',
+  },
+  {
+    subject: 'MediApp Wellness Update',
+    text: 'Small habits make big health gains. Track your health and explore MediApp today.',
+  },
+];
+
+const getNextPromoDate = (fromDate = new Date()) => {
+  const minMs = 48 * 60 * 60 * 1000;
+  const maxMs = 72 * 60 * 60 * 1000;
+  const delta = Math.floor(Math.random() * (maxMs - minMs + 1)) + minMs;
+  return new Date(fromDate.getTime() + delta);
+};
+
 // MongoDB Connection
 async function connectDB() {
   try {
@@ -111,6 +133,9 @@ const userSchema = new mongoose.Schema({
   address: { type: String, default: '' },
   dob: { type: String, default: '' },
   verified: { type: Boolean, default: false },
+  promoOptIn: { type: Boolean, default: true },
+  promoLastSentAt: { type: Date, default: null },
+  promoNextAt: { type: Date, default: null },
 });
 const User = mongoose.model('User', userSchema);
 
@@ -548,6 +573,54 @@ app.get('/api/usercount', async (req, res) => {
     const count = await User.countDocuments({});
     res.json({ count });
   } catch (err) {
+    res.status(500).json({ message: 'Server error', error: err.message });
+  }
+});
+
+app.post('/api/promotions/run', async (req, res) => {
+  try {
+    const configuredSecret = process.env.PROMO_CRON_SECRET || '';
+    const incomingSecret = req.headers['x-cron-secret'] || req.query.secret || '';
+    if (configuredSecret && incomingSecret !== configuredSecret) {
+      return res.status(401).json({ message: 'Unauthorized' });
+    }
+
+    const now = new Date();
+    const dueUsers = await User.find({
+      role: 'user',
+      verified: true,
+      promoOptIn: { $ne: false },
+      $or: [{ promoNextAt: { $exists: false } }, { promoNextAt: { $lte: now } }],
+    }).select('email firstName promoNextAt promoLastSentAt');
+
+    let sent = 0;
+    let failed = 0;
+    for (const user of dueUsers) {
+      const template = PROMO_TEMPLATES[Math.floor(Math.random() * PROMO_TEMPLATES.length)];
+      const subject = template.subject;
+      const text = template.text;
+      const html = `<p>Hi ${user.firstName || 'there'},</p><p>${template.text}</p><p>— MediApp</p>`;
+      try {
+        await transporter.sendMail({
+          from: process.env.EMAIL_USER,
+          to: user.email,
+          subject,
+          text,
+          html,
+        });
+        user.promoLastSentAt = now;
+        user.promoNextAt = getNextPromoDate(now);
+        await user.save();
+        sent += 1;
+      } catch (mailErr) {
+        failed += 1;
+        console.error('Promo email failed for', user.email, mailErr.message);
+      }
+    }
+
+    res.json({ message: 'Promotions processed', sent, failed, total: dueUsers.length });
+  } catch (err) {
+    console.error('Promotions run failed:', err);
     res.status(500).json({ message: 'Server error', error: err.message });
   }
 });
